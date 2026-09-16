@@ -439,40 +439,46 @@
         });
 
         // 4. 添加单词 - 批量
-        addBatchBtn.addEventListener('click', () => {
-            const raw = inputBatch.value.trim();
-            if (!raw) return;
-            
-            const lines = raw.split('\\n');
-            let addedCount = 0;
-            let skippedCount = 0;
-            
-            lines.forEach(line => {
-                // 兼容空格和逗号分隔
-                const parts = line.trim().split(/[\\s,，]+/);
-                if (parts.length >= 2) {
-                    const en = parts[0].trim();
-                    const zh = parts.slice(1).join(' ').trim();
-                    if (en && zh) {
-                        // 去重检查
-                        if (!words.some(w => w.en.toLowerCase() === en.toLowerCase())) {
-                            words.push({ en, zh });
-                            addedCount++;
-                        } else {
-                            skippedCount++;
-                        }
-                    }
-                }
-            });
-
-            if (addedCount > 0) {
-                saveToStorage();
-                inputBatch.value = '';
-                alert(`成功导入 ${addedCount} 个新单词${skippedCount > 0 ? `，跳过 ${skippedCount} 个已存在的单词` : ''}`);
+addBatchBtn.addEventListener('click', () => {
+    const raw = inputBatch.value.trim();
+    if (!raw) return;
+    
+    // 1. 将所有换行符替换为空格，统一拼成一大段，防止手机端排版把单词和中文拆散
+    const flattened = raw.replace(/\n/g, ' ');
+    
+    // 2. 利用正则匹配：找出 "英文单词 中文(可能包含空格)" 的组合
+    const regex = /([a-zA-Z][a-zA-Z\s\-']*?)\s+([\u4e00-\u9fa5\s]+?)(?=\s+[a-zA-Z]|$)/g;
+    
+    let match;
+    let addedCount = 0;
+    let skippedCount = 0;
+    
+    while ((match = regex.exec(flattened)) !== null) {
+        const en = match[1].trim();
+        let zh = match[2].trim();
+        
+        // 清理中文里可能多出来的空格
+        zh = zh.replace(/\s+/g, '');
+        
+        if (en && zh) {
+            // 去重检查
+            if (!words.some(w => w.en.toLowerCase() === en.toLowerCase())) {
+                words.push({ en, zh });
+                addedCount++;
             } else {
-                alert('没有导入任何单词，请检查格式（如：apple 苹果）或单词已存在');
+                skippedCount++;
             }
-        });
+        }
+    }
+
+    if (addedCount > 0) {
+        saveToStorage();
+        inputBatch.value = '';
+        alert(`成功导入 ${addedCount} 个新单词${skippedCount > 0 ? `，跳过 ${skippedCount} 个已存在的单词` : ''}`);
+    } else {
+        alert('没有导入任何单词，请检查格式（如：apple 苹果）或单词已存在');
+    }
+});
 
         // 5. 渲染列表
         function renderList() {
